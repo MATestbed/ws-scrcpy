@@ -52,7 +52,7 @@ export class ApplToolBox extends ToolBox {
         if (player.supportsScreenshot) {
             const screenshot = new ToolBoxButton('Take screenshot', SvgImage.Icon.CAMERA);
             screenshot.addEventListener('click', () => {
-                player.createScreenshot(client.getDeviceName());
+                player.saveScreenshot(client.getDeviceName());
             });
             elements.push(screenshot);
         }

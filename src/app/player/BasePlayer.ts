@@ -295,13 +295,21 @@ export abstract class BasePlayer extends TypedEmitter<PlayerEvents> {
         window.localStorage.setItem(fitKey, JSON.stringify(fitToScreen));
     }
 
+
+    // ../MsePlayer
     public abstract getImageDataURL(): string;
 
-    public createScreenshot(deviceName: string): void {
+    public saveScreenshot(deviceName: string): void {
         const a = document.createElement('a');
         a.href = this.getImageDataURL();
         a.download = `${deviceName} ${new Date().toLocaleString()}.png`;
         a.click();
+    }
+
+    public createScreenshot(deviceName: string) {
+        const url = this.getImageDataURL();
+        const name = `${deviceName} ${new Date().toLocaleString()}.png`;
+        return [url, name] as const;
     }
 
     public play(): void {

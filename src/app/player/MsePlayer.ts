@@ -187,7 +187,6 @@ export class MsePlayer extends BasePlayer {
         if (ctx) {
             ctx.drawImage(this.tag, 0, 0, canvas.width, canvas.height);
         }
-
         return canvas.toDataURL();
     }
 

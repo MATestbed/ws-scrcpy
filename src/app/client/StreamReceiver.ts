@@ -7,6 +7,8 @@ import Util from '../Util';
 import { DisplayInfo } from '../DisplayInfo';
 import { ParamsStream } from '../../types/ParamsStream';
 
+import { Multiplexer } from '../../packages/multiplexer/Multiplexer';
+
 const DEVICE_NAME_FIELD_LENGTH = 64;
 const MAGIC_BYTES_INITIAL = Util.stringToUtf8ByteArray('scrcpy_initial');
 
@@ -144,7 +146,6 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
                     return;
                 }
             }
-
             this.emit('video', new Uint8Array(event.data));
         }
     }
@@ -160,6 +161,22 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
     public sendEvent(event: ControlMessage): void {
         if (this.ws && this.ws.readyState === this.ws.OPEN) {
+            // action0: down
+            // action1: move
+            // action2: up
+            // 如何确定一个操作
+            console.log(TAG, event.toString());
+            if (this.ws) {
+                console.log(TAG, "have ws");
+                if (this.ws instanceof Multiplexer) {
+                    console.log(TAG, "ws is Multiplexer");
+                } 
+                if (this.ws instanceof WebSocket) {
+                    console.log(TAG, "ws is WebSocket");
+                }
+            } else {
+                console.log(TAG, "do not have ws");
+            }
             this.ws.send(event.toBuffer());
         } else {
             this.events.push(event);

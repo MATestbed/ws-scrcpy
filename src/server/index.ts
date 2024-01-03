@@ -53,6 +53,11 @@ async function loadGoogModules() {
     mw2List.push(FileListing);
     /// #endif
 
+    /// #if INCLUDE_SCREENSHOT
+    const { Screenshot } = await import('./goog-device/mw/Screenshot');
+    mw2List.push(Screenshot);
+    /// #endif
+
     mwList.push(WebsocketProxyOverAdb);
 }
 loadPlatformModulesPromises.push(loadGoogModules());

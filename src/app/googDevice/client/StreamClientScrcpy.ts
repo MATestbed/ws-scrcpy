@@ -312,20 +312,6 @@ export class StreamClientScrcpy
             }
         };
 
-        const googMoreBox = (this.moreBox = new GoogMoreBox(udid, player, this));
-        const moreBox = googMoreBox.getHolderElement();
-        googMoreBox.setOnStop(stop);
-        const googToolBox = GoogToolBox.createToolBox(udid, player, this, moreBox);
-        this.controlButtons = googToolBox.getHolderElement();
-        deviceView.appendChild(this.controlButtons);
-        const video = document.createElement('div');
-        video.className = 'video';
-        deviceView.appendChild(video);
-        deviceView.appendChild(moreBox);
-        player.setParent(video);
-        player.pause();
-
-        document.body.appendChild(deviceView);
         if (fitToScreen) {
             const newBounds = this.getMaxSize();
             if (newBounds) {
@@ -345,6 +331,32 @@ export class StreamClientScrcpy
         streamReceiver.on('displayInfo', this.onDisplayInfo);
         streamReceiver.on('disconnected', this.onDisconnected);
         console.log(TAG, player.getName(), udid);
+
+        const video = document.createElement('div');
+        video.className = 'video';
+        video.style.flex = '1'; // 让 video 占据剩余空间
+        player.setParent(video);
+        player.pause();
+
+        const screenshotDiv = document.createElement('div');
+        screenshotDiv.id = 'screenshot-div'; // 为这个 div 添加一个 ID，方便在样式表中进行定位或样式更改
+        screenshotDiv.style.width = '1000px'; // 根据需求设置 div 元素的样式
+        screenshotDiv.style.height = `${window.innerHeight}px`;
+        screenshotDiv.style.backgroundColor = '#ccc'; // 示例：设置背景颜色为灰色
+
+        const googMoreBox = (this.moreBox = new GoogMoreBox(udid, player, this));
+        const moreBox = googMoreBox.getHolderElement();
+        googMoreBox.setOnStop(stop);
+        const googToolBox = GoogToolBox.createToolBox(udid, player, this, moreBox, screenshotDiv);
+        this.controlButtons = googToolBox.getHolderElement();
+        deviceView.style.display = 'flex';
+        deviceView.style.flexDirection = 'row';
+        deviceView.appendChild(screenshotDiv);
+        deviceView.appendChild(video);
+        deviceView.appendChild(this.controlButtons);
+        deviceView.appendChild(moreBox);
+
+        document.body.appendChild(deviceView);
     }
 
     public sendMessage(message: ControlMessage): void {

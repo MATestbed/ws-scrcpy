@@ -137,6 +137,27 @@ export class AdbUtils {
         });
     }
 
+    public static async  ScreencapToStream(serial: string, stream: Multiplexer): Promise<void> {
+        const client = AdbExtended.createClient();
+        const screencapStream = await client.screencap(serial);
+    
+        screencapStream.on('data', (data) => {
+            stream.send(Buffer.concat([Buffer.from(Protocol.DATA, 'ascii'), data]));
+        });
+    
+        return new Promise((resolve, reject) => {
+            screencapStream.on('end', () => {
+                stream.send(Buffer.from(Protocol.DONE, 'ascii'));
+                stream.close();
+                resolve();
+            });
+    
+            screencapStream.on('error', (error) => {
+                reject(error);
+            });
+        });
+    }
+
     public static async forward(serial: string, remote: string): Promise<number> {
         const client = AdbExtended.createClient();
         const forwards = await client.listForwards(serial);

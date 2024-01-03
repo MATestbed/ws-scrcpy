@@ -313,7 +313,7 @@ export class FileListingClient extends ManagerClient<ParamsFileListing, never> i
             cmd = Protocol.LIST;
         }
         const len = Buffer.byteLength(path, 'utf-8');
-        const payload = Buffer.alloc(cmd.length + 4 + len);
+        const payload = Buffer.alloc(cmd.length + 4 + len); // 4是path的长度，uin32，用于解析path
         let pos = payload.write(cmd, 0);
         pos = payload.writeUInt32LE(len, pos);
         payload.write(path, pos);
