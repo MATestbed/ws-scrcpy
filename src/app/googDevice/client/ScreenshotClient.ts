@@ -36,7 +36,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
     private reqMap: Map<Multiplexer, Request> = new Map();
     private channels: Set<Multiplexer> = new Set();
 
-    private screenshotDiv: HTMLElement = document.createElement('div'); ;
+    private screenshotDiv: HTMLElement = document.createElement('div');
     private screenshotInfoMap: Map<string, ScreenshotInfo> = new Map(); // 存储当前图片名->图片的map
 
     constructor(params: ParamsScreenshot) {
@@ -49,6 +49,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             return;
         }
         this.screenshotDiv = params.screenshotDiv;
+        
     }
     
     public onError(error: string | Error): void {
@@ -254,14 +255,18 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
 
     // 函数：重新渲染 screenshotDiv 中的图片
     private renderScreenshots() {
-        console.log("renderScreenshots", "called");
         this.screenshotDiv.innerHTML = '';
-        this.screenshotDiv.style.display = 'flex';
-        this.screenshotDiv.style.flexWrap = 'wrap';
-        this.screenshotDiv.style.justifyContent = 'flex-start';
-        this.screenshotDiv.style.gap = '5px'; // 设置图片之间的间隔
-        this.screenshotDiv.style.overflowY = 'scroll';
-        this.screenshotDiv.style.maxHeight = `${window.innerHeight}px`; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
+        this.screenshotDiv.appendChild(this.createDownloadButton());
+        const picDiv = document.createElement('div');
+        this.screenshotDiv.appendChild(picDiv);
+
+        picDiv.innerHTML = '';
+        picDiv.style.display = 'flex';
+        picDiv.style.flexWrap = 'wrap';
+        picDiv.style.justifyContent = 'flex-start';
+        picDiv.style.gap = '5px'; // 设置图片之间的间隔
+        picDiv.style.overflowY = 'scroll';
+        picDiv.style.maxHeight = `${window.innerHeight}px`; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
 
         // 将每个图片 URL 渲染为缩略图，并为每张图片创建一个删除按钮
         this.screenshotInfoMap.forEach((info, name) => {
@@ -297,7 +302,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
                 thumbnailContainer.appendChild(thumbnailDeleteButton);
             }
 
-            this.screenshotDiv.appendChild(thumbnailContainer);
+            picDiv.appendChild(thumbnailContainer);
         });
     }
 
@@ -312,5 +317,49 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         buffer.writeUInt32LE(serial.length, 4);
         buffer.set(serial, 8);
         return buffer;
+    }
+
+    private createDownloadButton(): HTMLButtonElement {
+        // 创建下载按钮元素
+        const downloadButton = document.createElement('button');
+        downloadButton.innerText = '下载';
+        downloadButton.id = 'downloadButton'; // 为按钮添加一个ID，方便后续引用
+        // 将按钮放置在顶部中央位置
+        downloadButton.style.position = 'relative';
+        downloadButton.style.display = 'block';
+        downloadButton.style.margin = '0 auto';
+        downloadButton.addEventListener('click', () => {
+            // 遍历 screenshotInfoMap
+            this.screenshotInfoMap.forEach((info, key) => {
+                // 创建并下载图片文件
+                if (info.url) {
+                    const imageLink = document.createElement('a');
+                    imageLink.href = info.url;
+                    imageLink.download = `${key}_image.png`;
+                    imageLink.click();
+                }
+        
+                // 创建并下载 activityName 的文本文件
+                if (info.activityName) {
+                    const activityNameFile = new Blob([info.activityName], { type: 'text/plain' });
+                    const activityNameUrl = URL.createObjectURL(activityNameFile);
+                    const activityNameLink = document.createElement('a');
+                    activityNameLink.href = activityNameUrl;
+                    activityNameLink.download = `${key}_activityName.txt`;
+                    activityNameLink.click();
+                }
+        
+                // 创建并下载 xml 的文本文件
+                if (info.xml) {
+                    const xmlFile = new Blob([info.xml], { type: 'text/plain' });
+                    const xmlUrl = URL.createObjectURL(xmlFile);
+                    const xmlLink = document.createElement('a');
+                    xmlLink.href = xmlUrl;
+                    xmlLink.download = `${key}_xml.txt`;
+                    xmlLink.click();
+                }
+            });
+        });
+        return downloadButton;
     }
 }

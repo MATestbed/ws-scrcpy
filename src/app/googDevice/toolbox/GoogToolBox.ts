@@ -102,50 +102,6 @@ export class GoogToolBox extends ToolBox {
                     screenshotDiv.style.width = (window.innerWidth - screenInfo.videoSize.width - screenshot.getElement().clientWidth - 20) + 'px';
                 }
                 screenshotClient.getScreenshot();
-
-                // const [url, name] = player.createScreenshot(client.getDeviceName());
-
-                // // 创建一个新的<a>元素并设置其href为截图的URL
-                // const imageLink = document.createElement('a');
-                // imageLink.href = url;
-                // imageLink.download = name; // 下载属性设置为截图的名称
-
-                // // 创建一个新的img元素用于显示截图
-                // const image = document.createElement('img');
-                // image.src = url;
-                // image.alt = name;
-
-                // // 将图片追加到 imageLink 中
-                // imageLink.appendChild(image);
-
-                // // 创建一个新的 button 元素用于删除当前图片
-                // const deleteButton = document.createElement('button');
-                // deleteButton.textContent = 'Delete Image';
-                // deleteButton.addEventListener('click', () => {
-                //     // 找到当前点击按钮所在的索引
-                //     const index = deleteButtons.indexOf(deleteButton);
-                //     if (index !== -1) {
-                //         // 从数组中删除对应的图片 URL 和按钮
-                //         currentImageURLs.splice(index, 1);
-                //         deleteButtons.splice(index, 1);
-
-                //         // 重新渲染 screenshotDiv
-                //         renderScreenshots(screenshotDiv, currentImageURLs, deleteButtons);
-                //     }
-                // });
-
-                // // 将图片链接追加到 screenshotDiv 中
-                // screenshotDiv.appendChild(imageLink);
-
-                // // 将删除按钮追加到 screenshotDiv 中，并将其存储到 deleteButtons 数组中
-                // screenshotDiv.appendChild(deleteButton);
-                // deleteButtons.push(deleteButton);
-
-                // // 保存当前图片的 URL，以便稍后删除图片时使用
-                // currentImageURLs.push(url);
-
-                // // 重新渲染 screenshotDiv
-                // renderScreenshots(screenshotDiv, currentImageURLs, deleteButtons);
             });
             elements.push(screenshot);
         }
