@@ -4,16 +4,24 @@ import { ManagerClient } from '../../client/ManagerClient';
 import { ACTION } from '../../../common/Action';
 import Util from '../../Util';
 import Protocol from '@dead50f7/adbkit/lib/adb/protocol';
+import  {ScreenshotProtocol}  from '../../../types/ScreenshotProtocol';
 import { ChannelCode } from '../../../common/ChannelCode';
 import { Multiplexer } from '../../../packages/multiplexer/Multiplexer';
 
 const TAG = '[Screenshot]';
 
-type ScreenshotInfo = {
-    receivedBytes: number;
+type Request = {
+    streamdBytes: number;
     chunks: Uint8Array[];
     name: string;
 };
+
+type ScreenshotInfo = {
+    url?: string;
+    deleteButton?: HTMLButtonElement;
+    activityName?: string;
+    xml?: string;
+}
 
 export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
     public static readonly ACTION = ACTION.SCREENSHOT;
@@ -25,12 +33,11 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
 
     private readonly serial: string;
     private readonly name: string;
-    private infoMap: Map<Multiplexer, ScreenshotInfo> = new Map();
+    private reqMap: Map<Multiplexer, Request> = new Map();
     private channels: Set<Multiplexer> = new Set();
 
     private screenshotDiv: HTMLElement = document.createElement('div'); ;
-    private currentImageURLs: string[] = []; // 存储当前图片的URL
-    private deleteButtons: HTMLButtonElement[] = []; // 存储删除按钮
+    private screenshotInfoMap: Map<string, ScreenshotInfo> = new Map(); // 存储当前图片名->图片的map
 
     constructor(params: ParamsScreenshot) {
         super(params);
@@ -71,28 +78,34 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         console.log(TAG, "ableToUse");
     }
 
-    public getScreenshotToStream(): void {
+    public getScreenshot(): void {
+        let name = `${this.serial} ${new Date().toLocaleString()}.png`;
+        this.createReqChannel(ScreenshotProtocol.RPIC, name);
+        this.createReqChannel(ScreenshotProtocol.RACT, name);
+        this.createReqChannel(ScreenshotProtocol.RXML, name);
+    }
+
+    private createReqChannel(reqType: string, name: string): void {
         if (!this.ws || this.ws.readyState !== this.ws.OPEN || !(this.ws instanceof Multiplexer)) {
             return;
         }
-        let name = `${this.serial} ${new Date().toLocaleString()}.png`;
-        let cmd: string = Protocol.RECV;
+        let cmd: string = reqType;
         const payload = Buffer.alloc(cmd.length);
         payload.write(cmd, 0);
         const channel = this.ws.createChannel(payload);
         this.channels.add(channel);
-        const info: ScreenshotInfo = {
-            receivedBytes: 0,
+        const req: Request = {
+            streamdBytes: 0,
             chunks: [],
             name: name,
         }
-        this.infoMap.set(channel, info);
+        this.reqMap.set(channel, req);
         const onMessage = (event: MessageEvent): void => {
             this.handleReply(channel, event);
         };
         const onClose = (): void => {
             this.channels.delete(channel);
-            this.infoMap.delete(channel);
+            this.reqMap.delete(channel);
             channel.removeEventListener('message', onMessage);
             channel.removeEventListener('close', onClose);
         };
@@ -104,40 +117,48 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         const data = Buffer.from(e.data);
         const reply = data.slice(0, 4).toString('ascii');
         switch (reply) {
-            case Protocol.DONE:
-                this.finishScreenshot(channel);
-                return;
             case Protocol.FAIL:
                 const length = data.readUInt32LE(4);
                 const message = Util.utf8ByteArrayToString(data.slice(8, 8 + length));
                 console.error(TAG, `FAIL: ${message}`);
                 return;
-            case Protocol.DATA:
-                const info = this.infoMap.get(channel);
-                if (!info) {
+            case ScreenshotProtocol.FPIC:
+                this.finishScreenshotPic(channel);
+                return;
+            case ScreenshotProtocol.FACT:
+                this.finishScreenshotAct(channel);
+                return;
+            case ScreenshotProtocol.FXML:
+                this.finishScreenshotXML(channel);
+                return;
+            case ScreenshotProtocol.APIC:
+            case ScreenshotProtocol.AACT:
+            case ScreenshotProtocol.AXML:
+                const req = this.reqMap.get(channel);
+                if (!req) {
                     return;
                 }
-                info.chunks.push(data.slice(4));
-                info.receivedBytes += data.length - 4;
+                req.chunks.push(data.slice(4));
+                req.streamdBytes += data.length - 4;
                 return;
             default:
                 console.error(`Unexpected "${reply}"`);
         }
     }
 
-    protected finishScreenshot(channel: Multiplexer): void {
-        const info = this.infoMap.get(channel);
-        if (!info) {
+    protected finishScreenshotPic(channel: Multiplexer): void {
+        const req = this.reqMap.get(channel);
+        if (!req) {
             return;
         }
-        this.infoMap.delete(channel);
-        const blob = new Blob(info.chunks, { type: 'image/png' }); // 修改此处的 MIME 类型为实际图像类型
+        this.reqMap.delete(channel);
+        const blob = new Blob(req.chunks, { type: 'image/png' }); // 修改此处的 MIME 类型为实际图像类型
         const url = URL.createObjectURL(blob);
         console.log(TAG,url);
         // 创建一个图片元素并将 Blob URL 分配给其 src 属性
         const img = document.createElement('img');
         img.src = url;
-        let name: string = info.name;// 创建一个新的<a>元素并设置其href为截图的URL
+        let name: string = req.name; // 创建一个新的<a>元素并设置其href为截图的URL
         const imageLink = document.createElement('a');
         imageLink.href = url;
         imageLink.download = name; // 下载属性设置为截图的名称
@@ -153,48 +174,97 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         // 创建一个新的 button 元素用于删除当前图片
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete Image';
-        deleteButton.addEventListener('click', () => {
-            // 找到当前点击按钮所在的索引
-            const index = this.deleteButtons.indexOf(deleteButton);
-            if (index !== -1) {
-                // 从数组中删除对应的图片 URL 和按钮
-                this.currentImageURLs.splice(index, 1);
-                this.deleteButtons.splice(index, 1);
 
-                // 重新渲染 screenshotDiv
-                this.renderScreenshots(this.screenshotDiv, this.currentImageURLs, this.deleteButtons);
+        if (this.screenshotInfoMap.has(req.name)) {
+            let info = this.screenshotInfoMap.get(req.name); // 使用get方法获取Map中的值
+            if (info) {
+                info.url = url;
+                info.deleteButton = deleteButton;
+                if (info.activityName && info.xml && info.url) {
+                    this.renderScreenshots();
+                }
+                this.screenshotInfoMap.set(req.name, info);
             }
-        });
+        } else {
+            const info: ScreenshotInfo = {url: url, deleteButton: deleteButton};
+            deleteButton.addEventListener('click', () => {
+                const screenshotName = Array.from(this.screenshotInfoMap.entries()).find(([_, value]) => value === info)?.[0];
+                if (screenshotName) {
+                    this.screenshotInfoMap.delete(screenshotName);
+                    this.renderScreenshots();
+                }
+            });
+            this.screenshotInfoMap.set(req.name, info);
+        }
+    }
 
-        // 将图片链接追加到 screenshotDiv 中
-        this.screenshotDiv.appendChild(imageLink);
+    protected finishScreenshotAct(channel: Multiplexer): void {
+        const req = this.reqMap.get(channel);
+        if (!req) {
+            return;
+        }
+        const decoder = new TextDecoder('utf-8'); // 指定字符编码，这里使用 UTF-8
+        const stringArray = req.chunks.map(uint8Array => decoder.decode(uint8Array));
+        // 合并字符串数组为一个字符串
+        const mergedString = stringArray.join('');
+        console.log(TAG, mergedString);
+        this.reqMap.delete(channel);
+        if (this.screenshotInfoMap.has(req.name)) {
+            let info = this.screenshotInfoMap.get(req.name); // 使用get方法获取Map中的值
+            if (info) {
+                info.activityName = mergedString;
+                if (info.activityName && info.xml && info.url) {
+                    this.renderScreenshots();
+                }
+                this.screenshotInfoMap.set(req.name, info);
+            }
+        } else {
+            this.screenshotInfoMap.set(req.name, {
+                activityName: mergedString
+            });
+        }
+    }
 
-        // 将删除按钮追加到 screenshotDiv 中，并将其存储到 deleteButtons 数组中
-        this.screenshotDiv.appendChild(deleteButton);
-        this.deleteButtons.push(deleteButton);
-
-        // 保存当前图片的 URL，以便稍后删除图片时使用
-        this.currentImageURLs.push(url);
-
-        // 重新渲染 screenshotDiv
-        this.renderScreenshots(this.screenshotDiv, this.currentImageURLs, this.deleteButtons);
+    protected finishScreenshotXML(channel: Multiplexer): void {
+        const req = this.reqMap.get(channel);
+        if (!req) {
+            return;
+        }
+        const decoder = new TextDecoder('utf-8'); // 指定字符编码，这里使用 UTF-8
+        const stringArray = req.chunks.map(uint8Array => decoder.decode(uint8Array));
+        // 合并字符串数组为一个字符串
+        const mergedString = stringArray.join('');
+        console.log(TAG, 'xml');
+        this.reqMap.delete(channel);
+        if (this.screenshotInfoMap.has(req.name)) {
+            let info = this.screenshotInfoMap.get(req.name); // 使用get方法获取Map中的值
+            if (info) {
+                info.xml = mergedString;
+                if (info.activityName && info.xml && info.url) {
+                    this.renderScreenshots();
+                }
+                this.screenshotInfoMap.set(req.name, info);
+            }
+        } else {
+            this.screenshotInfoMap.set(req.name, {
+                xml: mergedString
+            });
+        }
     }
 
     // 函数：重新渲染 screenshotDiv 中的图片
-    private renderScreenshots(
-        screenshotDiv: HTMLElement,
-        currentImageURLs: string[],
-        deleteButtons: HTMLButtonElement[]) {
-        screenshotDiv.innerHTML = '';
-        screenshotDiv.style.display = 'flex';
-        screenshotDiv.style.flexWrap = 'wrap';
-        screenshotDiv.style.justifyContent = 'flex-start';
-        screenshotDiv.style.gap = '5px'; // 设置图片之间的间隔
-        screenshotDiv.style.overflowY = 'scroll';
-        screenshotDiv.style.maxHeight = `${window.innerHeight}px`; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
+    private renderScreenshots() {
+        console.log("renderScreenshots", "called");
+        this.screenshotDiv.innerHTML = '';
+        this.screenshotDiv.style.display = 'flex';
+        this.screenshotDiv.style.flexWrap = 'wrap';
+        this.screenshotDiv.style.justifyContent = 'flex-start';
+        this.screenshotDiv.style.gap = '5px'; // 设置图片之间的间隔
+        this.screenshotDiv.style.overflowY = 'scroll';
+        this.screenshotDiv.style.maxHeight = `${window.innerHeight}px`; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
 
         // 将每个图片 URL 渲染为缩略图，并为每张图片创建一个删除按钮
-        currentImageURLs.forEach((url, index) => {
+        this.screenshotInfoMap.forEach((info, name) => {
             const thumbnailContainer = document.createElement('div');
             thumbnailContainer.classList.add('thumbnail-container');
             thumbnailContainer.style.display = 'inline-block';
@@ -202,34 +272,34 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
 
             thumbnailContainer.style.marginBottom = '5px'; // 设置底部间距
 
-            const thumbnailLink = document.createElement('a');
-            thumbnailLink.href = url;
-            thumbnailLink.download = `screenshot_${index + 1}`;
-            thumbnailLink.style.display = 'block'; // 设置为块级元素以便设置高度
+            if (info.url) {
+                const thumbnailLink = document.createElement('a');
+                thumbnailLink.href = info.url;
+                thumbnailLink.download = name;
+                thumbnailLink.style.display = 'block'; // 设置为块级元素以便设置高度
 
-            const thumbnailImage = document.createElement('img');
-            thumbnailImage.src = url;
-            thumbnailImage.alt = `Screenshot ${index + 1}`;
-            thumbnailImage.style.width = '100%'; // 设置图片宽度为100%
-            thumbnailImage.style.height = 'auto'; // 设置图片高度自适应
+                const thumbnailImage = document.createElement('img');
+                thumbnailImage.src = info.url;
+                thumbnailImage.alt = name;
+                thumbnailImage.style.width = '100%'; // 设置图片宽度为100%
+                thumbnailImage.style.height = 'auto'; // 设置图片高度自适应
 
-            thumbnailLink.appendChild(thumbnailImage);
+                thumbnailLink.appendChild(thumbnailImage);
 
-            const thumbnailDeleteButton = document.createElement('button');
-            thumbnailDeleteButton.textContent = 'Delete';
-            thumbnailDeleteButton.addEventListener('click', () => {
-                currentImageURLs.splice(index, 1);
-                deleteButtons.splice(index, 1);
-                this.renderScreenshots(screenshotDiv, currentImageURLs, deleteButtons);
-            });
+                const thumbnailDeleteButton = document.createElement('button');
+                thumbnailDeleteButton.textContent = 'Delete';
+                thumbnailDeleteButton.addEventListener('click', () => {
+                    this.screenshotInfoMap.delete(name);
+                    this.renderScreenshots();
+                });
 
-            thumbnailContainer.appendChild(thumbnailLink);
-            thumbnailContainer.appendChild(thumbnailDeleteButton);
+                thumbnailContainer.appendChild(thumbnailLink);
+                thumbnailContainer.appendChild(thumbnailDeleteButton);
+            }
 
-            screenshotDiv.appendChild(thumbnailContainer);
+            this.screenshotDiv.appendChild(thumbnailContainer);
         });
     }
-
 
     protected supportMultiplexing(): boolean {
         return true;

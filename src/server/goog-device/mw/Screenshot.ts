@@ -4,6 +4,7 @@ import Util from '../../../app/Util';
 import Protocol from '@dead50f7/adbkit/lib/adb/protocol';
 import { Multiplexer } from '../../../packages/multiplexer/Multiplexer';
 import { ChannelCode } from '../../../common/ChannelCode';
+import { ScreenshotProtocol } from '../../../types/ScreenshotProtocol';
 
 export class Screenshot extends Mw {
     public static readonly TAG = 'Screenshot';
@@ -42,7 +43,9 @@ export class Screenshot extends Mw {
         const cmd = Util.utf8ByteArrayToString(data.slice(offset, 4));
         offset += 4;
         switch (cmd) {
-            case Protocol.RECV:
+            case ScreenshotProtocol.RPIC:
+            case ScreenshotProtocol.RACT:
+            case ScreenshotProtocol.RXML:
                 Screenshot.handle(cmd, serial, channel).catch((error: Error) => {
                     console.error(`[${Screenshot.TAG}]`, error.message);
                 });
@@ -56,8 +59,14 @@ export class Screenshot extends Mw {
 
     private static async handle(cmd: string, serial: string, channel: Multiplexer): Promise<void> {
         try {
-            if (cmd === Protocol.RECV) {
+            if (cmd === ScreenshotProtocol.RPIC) {
                 return AdbUtils.ScreencapToStream(serial, channel);
+            }
+            if (cmd === ScreenshotProtocol.RACT) {
+                return AdbUtils.ScreencapActivity(serial, channel);
+            }
+            if (cmd === ScreenshotProtocol.RXML) {
+                return AdbUtils.ScreencapXML(serial, channel);
             }
         } catch (error: any) {
             Screenshot.sendError(error?.message, channel);

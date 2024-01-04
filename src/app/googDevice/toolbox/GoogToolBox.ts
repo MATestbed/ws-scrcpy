@@ -101,7 +101,7 @@ export class GoogToolBox extends ToolBox {
                 if (screenInfo) {
                     screenshotDiv.style.width = (window.innerWidth - screenInfo.videoSize.width - screenshot.getElement().clientWidth - 20) + 'px';
                 }
-                screenshotClient.getScreenshotToStream();
+                screenshotClient.getScreenshot();
 
                 // const [url, name] = player.createScreenshot(client.getDeviceName());
 

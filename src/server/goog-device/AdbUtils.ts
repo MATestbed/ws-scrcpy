@@ -11,6 +11,7 @@ import Stats from '@dead50f7/adbkit/lib/adb/sync/stats';
 import PullTransfer from '@dead50f7/adbkit/lib/adb/sync/pulltransfer';
 import { FileStats } from '../../types/FileStats';
 import Protocol from '@dead50f7/adbkit/lib/adb/protocol';
+import { ScreenshotProtocol } from '../../types/ScreenshotProtocol';
 import { Multiplexer } from '../../packages/multiplexer/Multiplexer';
 import { ReadStream } from 'fs';
 import PushTransfer from '@dead50f7/adbkit/lib/adb/sync/pushtransfer';
@@ -142,12 +143,54 @@ export class AdbUtils {
         const screencapStream = await client.screencap(serial);
     
         screencapStream.on('data', (data) => {
-            stream.send(Buffer.concat([Buffer.from(Protocol.DATA, 'ascii'), data]));
+            stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.APIC, 'ascii'), data]));
         });
     
         return new Promise((resolve, reject) => {
             screencapStream.on('end', () => {
-                stream.send(Buffer.from(Protocol.DONE, 'ascii'));
+                stream.send(Buffer.from(ScreenshotProtocol.FPIC, 'ascii'));
+                stream.close();
+                resolve();
+            });
+    
+            screencapStream.on('error', (error) => {
+                reject(error);
+            });
+        });
+    }
+
+    public static async  ScreencapActivity(serial: string, stream: Multiplexer): Promise<void> {
+        const client = AdbExtended.createClient();
+        const screencapStream = await client.shell(serial, 'dumpsys window windows | grep -E \'mObscuringWindow\'');
+    
+        screencapStream.on('data', (data) => {
+            stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.AACT, 'utf-8'), data]));
+        });
+    
+        return new Promise((resolve, reject) => {
+            screencapStream.on('end', () => {
+                stream.send(Buffer.from(ScreenshotProtocol.FACT, 'utf-8'));
+                stream.close();
+                resolve();
+            });
+    
+            screencapStream.on('error', (error) => {
+                reject(error);
+            });
+        });
+    }
+
+    public static async  ScreencapXML(serial: string, stream: Multiplexer): Promise<void> {
+        const client = AdbExtended.createClient();
+        const screencapStream = await client.shell(serial, 'uiautomator dump 1>/dev/null && cat /sdcard/window_dump.xml');
+    
+        screencapStream.on('data', (data) => {
+            stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.AXML, 'utf-8'), data]));
+        });
+    
+        return new Promise((resolve, reject) => {
+            screencapStream.on('end', () => {
+                stream.send(Buffer.from(ScreenshotProtocol.FXML, 'utf-8'));
                 stream.close();
                 resolve();
             });
