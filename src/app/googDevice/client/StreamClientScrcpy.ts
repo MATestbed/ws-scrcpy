@@ -339,10 +339,26 @@ export class StreamClientScrcpy
         player.pause();
 
         const screenshotDiv = document.createElement('div');
-        screenshotDiv.id = 'screenshot-div'; // 为这个 div 添加一个 ID，方便在样式表中进行定位或样式更改
-        screenshotDiv.style.width = '1000px'; // 根据需求设置 div 元素的样式
-        screenshotDiv.style.height = `${window.innerHeight}px`;
-        screenshotDiv.style.backgroundColor = '#ccc'; // 示例：设置背景颜色为灰色
+        screenshotDiv.id = 'screenshot-div'; 
+        screenshotDiv.style.width = '1000px'; 
+        const screenHeight = window.innerHeight;
+        const screenshotDivHeight = screenHeight * (2 / 3);
+        screenshotDiv.style.height = `${screenshotDivHeight}px`;
+        screenshotDiv.style.backgroundColor = '#ccc'; 
+
+        const eventDiv = document.createElement('div');
+        eventDiv.id = 'event-div'; 
+        eventDiv.style.width = '1000px'; 
+        const eventDivHeight = screenHeight * (1 / 3);
+        eventDiv.style.height = `${eventDivHeight}px`;
+        eventDiv.style.backgroundColor = '#ccc'; 
+        eventDiv.style.overflowY = 'scroll';
+        eventDiv.style.maxHeight = `${eventDivHeight}px`;
+        this.streamReceiver.setEventDiv(eventDiv);
+
+        const recordDiv = document.createElement('div');
+        recordDiv.appendChild(screenshotDiv);
+        recordDiv.appendChild(eventDiv);
 
         const googMoreBox = (this.moreBox = new GoogMoreBox(udid, player, this));
         const moreBox = googMoreBox.getHolderElement();
@@ -351,7 +367,7 @@ export class StreamClientScrcpy
         this.controlButtons = googToolBox.getHolderElement();
         deviceView.style.display = 'flex';
         deviceView.style.flexDirection = 'row';
-        deviceView.appendChild(screenshotDiv);
+        deviceView.appendChild(recordDiv);
         deviceView.appendChild(video);
         deviceView.appendChild(this.controlButtons);
         deviceView.appendChild(moreBox);

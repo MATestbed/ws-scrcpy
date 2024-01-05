@@ -7,7 +7,13 @@ import Util from '../Util';
 import { DisplayInfo } from '../DisplayInfo';
 import { ParamsStream } from '../../types/ParamsStream';
 
-import { Multiplexer } from '../../packages/multiplexer/Multiplexer';
+import { KeyCodeControlMessage } from '../controlMessage/KeyCodeControlMessage';
+import { TouchControlMessage } from '../controlMessage/TouchControlMessage';
+import Position from '../Position';
+import Point from '../Point';
+import Size from '../Size';
+import KeyEvent from '../googDevice/android/KeyEvent';
+import { KeyEventToChar, KeyEventToCharUnderShift } from '../googDevice/KeyEventToChar';
 
 const DEVICE_NAME_FIELD_LENGTH = 64;
 const MAGIC_BYTES_INITIAL = Util.stringToUtf8ByteArray('scrcpy_initial');
@@ -24,6 +30,11 @@ export type DisplayCombinedInfo = {
     connectionCount: number;
 };
 
+type EventStruct = {
+    text: string;
+    deleteButton: HTMLButtonElement;
+}
+
 interface StreamReceiverEvents {
     video: ArrayBuffer;
     deviceMessage: DeviceMessage;
@@ -34,7 +45,7 @@ interface StreamReceiverEvents {
     disconnected: CloseEvent;
 }
 
-const TAG = '[StreamReceiver]';
+// const TAG = '[StreamReceiver]';
 
 export class StreamReceiver<P extends ParamsStream> extends ManagerClient<ParamsStream, StreamReceiverEvents> {
     private events: ControlMessage[] = [];
@@ -46,6 +57,8 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     private readonly screenInfoMap: Map<number, ScreenInfo> = new Map();
     private readonly videoSettingsMap: Map<number, VideoSettings> = new Map();
     private hasInitialInfo = false;
+    private eventDiv: HTMLElement = document.createElement('div');
+    private eventStructs: EventStruct[] = [];
 
     constructor(params: P) {
         super(params);
@@ -127,7 +140,6 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     }
 
     protected onSocketClose(ev: CloseEvent): void {
-        console.log(`${TAG}. WS closed: ${ev.reason}`);
         this.emit('disconnected', ev);
     }
 
@@ -165,22 +177,148 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
             // action1: move
             // action2: up
             // 如何确定一个操作
-            console.log(TAG, event.toString());
-            if (this.ws) {
-                console.log(TAG, "have ws");
-                if (this.ws instanceof Multiplexer) {
-                    console.log(TAG, "ws is Multiplexer");
-                } 
-                if (this.ws instanceof WebSocket) {
-                    console.log(TAG, "ws is WebSocket");
-                }
-            } else {
-                console.log(TAG, "do not have ws");
-            }
+            console.log(event.toString());
+            this.appendEvent(event);
             this.ws.send(event.toBuffer());
         } else {
             this.events.push(event);
         }
+    }
+
+    public setEventDiv(eventDiv: HTMLElement) {
+        this.eventDiv = eventDiv;
+    }
+
+    private underShift = false;
+    private tmpInputString: string[] = [];
+    private tmpCursorPos = 0;
+    private touchMoveNum = 0;
+    private lastTouchDown = new TouchControlMessage(0, 0, new Position(new Point(0, 0), new Size(0, 0)) , 0, 0);
+    private appendEvent(event: ControlMessage): void {
+        const [ableToShow, text] = this.getTextByEvent(event);
+        if (!ableToShow) return;
+        const deleteButton = document.createElement('button');
+        deleteButton.textContent = 'Delete';
+        const struct: EventStruct = {text: text, deleteButton: deleteButton}
+        deleteButton.addEventListener('click', () => {
+            const index = this.eventStructs.indexOf(struct);
+            if (index !== -1) {
+                this.eventStructs.splice(index, 1);
+                this.renderEvents();
+            }
+        });
+        this.eventStructs.push(struct);
+        this.renderEvents();
+    }
+
+    private getTextByEvent(event: ControlMessage): [boolean, string] {
+        let text = '';   
+        if (event instanceof KeyCodeControlMessage) {
+            text = this.getTextByKeyCodeMsg(event);
+        } else if (event instanceof TouchControlMessage) {
+            text = this.getTextByTouchMsg(event);
+        } 
+        return [text !== '', text];
+    }
+
+    private getTextByKeyCodeMsg(event: KeyCodeControlMessage): string {
+        let text = '';
+        if (event.action == 1) {
+            switch (event.keycode) {
+                case KeyEvent.KEYCODE_BACK:
+                    text = '【Back键】';
+                    break;
+                case KeyEvent.KEYCODE_HOME:
+                    text = '【Home键】';
+                    break;
+                case KeyEvent.KEYCODE_SHIFT_LEFT:
+                case KeyEvent.KEYCODE_SHIFT_RIGHT:
+                    this.underShift = false;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_UP:
+                    this.tmpCursorPos = 0;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_DOWN:
+                    this.tmpCursorPos = this.tmpInputString.length;
+                    break;
+                case KeyEvent.KEYCODE_DPAD_LEFT:
+                    if (this.tmpCursorPos > 0) {
+                        this.tmpCursorPos--;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DPAD_RIGHT:
+                    if (this.tmpCursorPos < this.tmpInputString.length) {
+                        this.tmpCursorPos++;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_DEL:
+                    if (this.tmpCursorPos > 0) {
+                        this.tmpInputString.splice(this.tmpCursorPos - 1, 1);
+                        this.tmpCursorPos--;
+                    }
+                    break;
+                case KeyEvent.KEYCODE_ENTER:
+                    text = '【键盘输入】' + this.tmpInputString.join('');
+                    break;
+                default:
+                    let newInput = '';
+                    if (!this.underShift) {
+                        const tryGet = KeyEventToChar.get(event.keycode);
+                        if (tryGet) newInput = tryGet;
+                    } else {
+                        const tryGet = KeyEventToCharUnderShift.get(event.keycode);
+                        if (tryGet) newInput = tryGet;
+                    }
+                    if (newInput != '') {
+                        this.tmpInputString.splice(this.tmpCursorPos, 0, newInput);
+                        this.tmpCursorPos++;
+                    }
+            }
+        } else if (event.keycode == KeyEvent.KEYCODE_SHIFT_LEFT || event.keycode == KeyEvent.KEYCODE_SHIFT_RIGHT) {
+            this.underShift = true;
+        }
+        return text;
+    }
+
+    private getTextByTouchMsg(event: TouchControlMessage): string {
+        this.tmpCursorPos = 0;
+        this.tmpInputString = [];
+        let text = '';
+        if (event.action == 0) {
+            this.lastTouchDown = event;
+        } else if (event.action == 1) {
+            if (this.touchMoveNum < 3) {
+                text = `【点击事件】屏幕大小：（w${event.position.screenSize.width}，h${event.position.screenSize.height}），触摸位置：（x${event.position.point.x}，y${event.position.point.y}）`;
+            } else {
+                text = `【滑动事件】屏幕大小：（w${event.position.screenSize.width}，h${event.position.screenSize.height}），起始位置：（x${this.lastTouchDown.position.point.x}，y${this.lastTouchDown.position.point.y}），结束位置：（x${event.position.point.x}，y${event.position.point.y}）`;
+            }
+            this.touchMoveNum = 0;
+        } else if (event.action == 2) {
+            this.touchMoveNum++;
+        }
+        return text;
+    }
+
+    private renderEvents(): void {
+        this.eventDiv.innerHTML = '';
+        const downloadButton = this.createDownloadButton();
+        this.eventDiv.appendChild(downloadButton);
+
+        this.eventStructs.forEach((struct) => {
+            const eventRow = document.createElement('div');
+            eventRow.style.display = 'flex'; 
+            eventRow.style.alignItems = 'center'; 
+
+            const deleteButtonContainer = document.createElement('div');
+            deleteButtonContainer.appendChild(struct.deleteButton);
+            eventRow.appendChild(deleteButtonContainer);
+
+            const textContainer = document.createElement('div');
+            textContainer.textContent = struct.text;
+            eventRow.appendChild(textContainer);
+
+            this.eventDiv.appendChild(eventRow);
+        });
     }
 
     public stop(): void {
@@ -221,4 +359,28 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     public getDisplayInfo(displayId: number): DisplayInfo | undefined {
         return this.displayInfoMap.get(displayId);
     }
+
+    private createDownloadButton(): HTMLButtonElement {
+        const downloadButton = document.createElement('button');
+        downloadButton.innerText = '下载';
+        downloadButton.id = 'downloadButton';
+    
+        downloadButton.style.position = 'relative';
+        downloadButton.style.display = 'block';
+        downloadButton.style.margin = '0 auto';
+    
+        downloadButton.addEventListener('click', () => {
+            const content = this.eventStructs.map((struct) => struct.text).join('\n');
+            const blob = new Blob([content], { type: 'text/plain' });
+    
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'eventStructs.txt';
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+        return downloadButton;
+    }
+    
 }

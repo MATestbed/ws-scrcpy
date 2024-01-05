@@ -256,7 +256,8 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
     // 函数：重新渲染 screenshotDiv 中的图片
     private renderScreenshots() {
         this.screenshotDiv.innerHTML = '';
-        this.screenshotDiv.appendChild(this.createDownloadButton());
+        const downloadButton = this.createDownloadButton();
+        this.screenshotDiv.appendChild(downloadButton);
         const picDiv = document.createElement('div');
         this.screenshotDiv.appendChild(picDiv);
 
@@ -266,7 +267,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         picDiv.style.justifyContent = 'flex-start';
         picDiv.style.gap = '5px'; // 设置图片之间的间隔
         picDiv.style.overflowY = 'scroll';
-        picDiv.style.maxHeight = `${window.innerHeight}px`; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
+        picDiv.style.maxHeight = `${this.screenshotDiv.clientHeight - downloadButton.clientHeight - 5}px`;; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
 
         // 将每个图片 URL 渲染为缩略图，并为每张图片创建一个删除按钮
         this.screenshotInfoMap.forEach((info, name) => {

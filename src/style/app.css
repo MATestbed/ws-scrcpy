@@ -131,6 +131,12 @@ body.stream {
     background-color: #000000;
 }
 
+.event-div {
+    float: right;
+    max-height: 100%;
+    max-width: 100%;
+    background-color: #000000;
+}
 
 .control-buttons-list {
     float: right;
