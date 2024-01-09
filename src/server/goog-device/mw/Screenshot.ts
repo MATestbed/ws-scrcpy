@@ -1,5 +1,6 @@
 import { Mw } from '../../mw/Mw';
 import { AdbUtils } from '../AdbUtils';
+import { PythonUtils } from '../PythonUtils';
 import Util from '../../../app/Util';
 import Protocol from '@dead50f7/adbkit/lib/adb/protocol';
 import { Multiplexer } from '../../../packages/multiplexer/Multiplexer';
@@ -46,6 +47,8 @@ export class Screenshot extends Mw {
             case ScreenshotProtocol.RPIC:
             case ScreenshotProtocol.RACT:
             case ScreenshotProtocol.RXML:
+            case ScreenshotProtocol.RSER:
+            case ScreenshotProtocol.RHIE:
                 Screenshot.handle(cmd, serial, channel).catch((error: Error) => {
                     console.error(`[${Screenshot.TAG}]`, error.message);
                 });
@@ -66,6 +69,12 @@ export class Screenshot extends Mw {
                 return AdbUtils.ScreencapActivity(serial, channel);
             }
             if (cmd === ScreenshotProtocol.RXML) {
+                return AdbUtils.ScreencapXML(serial, channel);
+            }
+            if (cmd === ScreenshotProtocol.RSER) {
+                return PythonUtils.prepareServer(serial, channel);
+            }
+            if (cmd === ScreenshotProtocol.RHIE) {
                 return AdbUtils.ScreencapXML(serial, channel);
             }
         } catch (error: any) {

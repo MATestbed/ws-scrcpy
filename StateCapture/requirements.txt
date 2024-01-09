@@ -1,0 +1,2 @@
+droidbot==1.0.2b4
+setuptools==69.0.2

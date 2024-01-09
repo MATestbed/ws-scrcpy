@@ -2,3 +2,6 @@
 /dist
 /build
 /.idea
+/StateCapture/captured_data
+/StateCapture/venv
+/StateCapture/__pycache__
