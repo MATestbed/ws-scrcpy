@@ -197,6 +197,10 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     private appendEvent(event: ControlMessage): void {
         const [ableToShow, text] = this.getTextByEvent(event);
         if (!ableToShow) return;
+        this.appendRecordWithDelButton(text);
+    }
+
+    private appendRecordWithDelButton(text: string) {
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete';
         const struct: EventStruct = {text: text, deleteButton: deleteButton}
@@ -257,9 +261,6 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
                         this.tmpCursorPos--;
                     }
                     break;
-                case KeyEvent.KEYCODE_ENTER:
-                    text = '【键盘输入】' + this.tmpInputString.join('');
-                    break;
                 default:
                     let newInput = '';
                     if (!this.underShift) {
@@ -301,8 +302,14 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
     private renderEvents(): void {
         this.eventDiv.innerHTML = '';
+        const buttonsContainer = document.createElement('div');
+        buttonsContainer.style.display = 'flex';
+        buttonsContainer.style.flexDirection = 'row';
         const downloadButton = this.createDownloadButton();
-        this.eventDiv.appendChild(downloadButton);
+        const textButton = this.createTextButton();
+        buttonsContainer.appendChild(downloadButton);
+        buttonsContainer.appendChild(textButton);
+        this.eventDiv.appendChild(buttonsContainer);
 
         this.eventStructs.forEach((struct) => {
             const eventRow = document.createElement('div');
@@ -382,5 +389,18 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
         });
         return downloadButton;
     }
+
+    private createTextButton(): HTMLButtonElement {
+        const textButton = document.createElement('button');
+        textButton.innerText = '记录键盘输入';
+        textButton.id = 'textButton'; 
+        textButton.style.position = 'relative';
+        textButton.style.display = 'block';
+        textButton.style.margin = '0 auto';
+        textButton.addEventListener('click', () => {
+            this.appendRecordWithDelButton('【键盘输入】' + this.tmpInputString.join(''));
+        });
     
+        return textButton;
+    }
 }
