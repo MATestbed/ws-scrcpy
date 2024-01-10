@@ -16,6 +16,7 @@ import ArrowBackSVG from '../../public/images/buttons/arrow_back.svg';
 import ToggleOnSVG from '../../public/images/buttons/toggle_on.svg';
 import ToggleOffSVG from '../../public/images/buttons/toggle_off.svg';
 import ScreenshotSVG from '../../public/images/skin-light/ic_screenshot.svg';
+import ServerSVG from '../../public/images/skin-light/ic_server.svg';
 
 export enum Icon {
     BACK,
@@ -36,6 +37,7 @@ export enum Icon {
     TOGGLE_ON,
     TOGGLE_OFF,
     SCREENSHOT,
+    SERVER,
 }
 
 export default class SvgImage {
@@ -78,6 +80,8 @@ export default class SvgImage {
                 return ToggleOffSVG;
             case Icon.SCREENSHOT:
                 return ScreenshotSVG;
+            case Icon.SERVER:
+                return ServerSVG;
             default:
                 return '';
         }

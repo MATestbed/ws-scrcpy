@@ -1,11 +1,12 @@
 import { Mw } from '../../mw/Mw';
 import { AdbUtils } from '../AdbUtils';
-import { PythonUtils } from '../PythonUtils';
+import { PythonServer } from '../PythonUtils';
 import Util from '../../../app/Util';
 import Protocol from '@dead50f7/adbkit/lib/adb/protocol';
 import { Multiplexer } from '../../../packages/multiplexer/Multiplexer';
 import { ChannelCode } from '../../../common/ChannelCode';
 import { ScreenshotProtocol } from '../../../types/ScreenshotProtocol';
+import { HttpUtils } from '../HttpUtils';
 
 export class Screenshot extends Mw {
     public static readonly TAG = 'Screenshot';
@@ -48,6 +49,7 @@ export class Screenshot extends Mw {
             case ScreenshotProtocol.RACT:
             case ScreenshotProtocol.RXML:
             case ScreenshotProtocol.RSER:
+            case ScreenshotProtocol.RCSE:
             case ScreenshotProtocol.RHIE:
                 Screenshot.handle(cmd, serial, channel).catch((error: Error) => {
                     console.error(`[${Screenshot.TAG}]`, error.message);
@@ -72,10 +74,15 @@ export class Screenshot extends Mw {
                 return AdbUtils.ScreencapXML(serial, channel);
             }
             if (cmd === ScreenshotProtocol.RSER) {
-                return PythonUtils.prepareServer(serial, channel);
+                channel.close();
+                return PythonServer.startServer();
+            }
+            if (cmd === ScreenshotProtocol.RCSE) {
+                channel.close();
+                return PythonServer.closeServer();
             }
             if (cmd === ScreenshotProtocol.RHIE) {
-                return AdbUtils.ScreencapXML(serial, channel);
+                return HttpUtils.get('http://127.0.0.1:5000/get_view', channel);
             }
         } catch (error: any) {
             Screenshot.sendError(error?.message, channel);

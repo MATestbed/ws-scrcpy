@@ -81,7 +81,6 @@ export class GoogToolBox extends ToolBox {
 
         const params: ParamsScreenshot = {action: ACTION.SCREENSHOT, udid: udid, screenshotDiv: screenshotDiv};
         const screenshotClient = ScreenshotClient.start(params);
-        screenshotClient.ableToUse();
 
         if (player.supportsScreenshot) {
             const screenshotToSave = new ToolBoxButton('Take screenshot and save', SvgImage.Icon.CAMERA);
@@ -105,6 +104,17 @@ export class GoogToolBox extends ToolBox {
             });
             elements.push(screenshot);
         }
+
+        const hierarchyServer = new ToolBoxCheckbox(
+            'hierarchy server',
+            SvgImage.Icon.SERVER,
+            `hierarchy_server_${udid}_${playerName}`,
+        );
+        hierarchyServer.addEventListener('click', (_, el) => {
+            const element = el.getElement();
+            screenshotClient.setHierarchyServerAbleToUse(element.checked);
+        });
+        elements.push(hierarchyServer);
         
         const keyboard = new ToolBoxCheckbox(
             'Capture keyboard',
