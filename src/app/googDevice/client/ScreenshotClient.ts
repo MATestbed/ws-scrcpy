@@ -320,7 +320,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             if (info.url) {
                 const thumbnailLink = document.createElement('a');
                 thumbnailLink.href = info.url;
-                thumbnailLink.download = name;
+                // thumbnailLink.download = name;
                 thumbnailLink.style.display = 'block'; // 设置为块级元素以便设置高度
 
                 const thumbnailImage = document.createElement('img');
@@ -338,8 +338,18 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
                     this.renderScreenshots();
                 });
 
+                const thumbnailDownloadButton = document.createElement('button');
+                thumbnailDownloadButton.textContent = 'Download';
+                thumbnailDownloadButton.addEventListener('click', () => {
+                    const tmpInfo = this.screenshotInfoMap.get(name);
+                    if (tmpInfo) {
+                        this.download(name, tmpInfo);
+                    }
+                });
+
                 thumbnailContainer.appendChild(thumbnailLink);
                 thumbnailContainer.appendChild(thumbnailDeleteButton);
+                thumbnailContainer.appendChild(thumbnailDownloadButton);
             }
 
             picDiv.appendChild(thumbnailContainer);
@@ -371,45 +381,48 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         downloadButton.addEventListener('click', () => {
             // 遍历 screenshotInfoMap
             this.screenshotInfoMap.forEach((info, key) => {
-                // 创建并下载图片文件
-                if (info.url) {
-                    const imageLink = document.createElement('a');
-                    imageLink.href = info.url;
-                    imageLink.download = `${key}_image.png`;
-                    imageLink.click();
-                }
-        
-                // 创建并下载 activityName 的文本文件
-                if (info.activityName) {
-                    const activityNameFile = new Blob([info.activityName], { type: 'text/plain' });
-                    const activityNameUrl = URL.createObjectURL(activityNameFile);
-                    const activityNameLink = document.createElement('a');
-                    activityNameLink.href = activityNameUrl;
-                    activityNameLink.download = `${key}_activityName.txt`;
-                    activityNameLink.click();
-                }
-        
-                // 创建并下载 xml 的文本文件
-                if (info.xml) {
-                    const xmlFile = new Blob([info.xml], { type: 'text/plain' });
-                    const xmlUrl = URL.createObjectURL(xmlFile);
-                    const xmlLink = document.createElement('a');
-                    xmlLink.href = xmlUrl;
-                    xmlLink.download = `${key}_xml.txt`;
-                    xmlLink.click();
-                }
-
-                // 创建并下载 hierarchy 的文本文件
-                if (info.hierarchy) {
-                    const hierarchyFile = new Blob([info.hierarchy], { type: 'text/plain' });
-                    const hierarchyUrl = URL.createObjectURL(hierarchyFile);
-                    const hierarchyLink = document.createElement('a');
-                    hierarchyLink.href = hierarchyUrl;
-                    hierarchyLink.download = `${key}_hierarchy.txt`;
-                    hierarchyLink.click();
-                }
+                this.download(key, info);
             });
         });
         return downloadButton;
+    }
+    private download(name: string, info: ScreenshotInfo): void {
+        // 创建并下载图片文件
+        if (info.url) {
+            const imageLink = document.createElement('a');
+            imageLink.href = info.url;
+            imageLink.download = `${name}_image.png`;
+            imageLink.click();
+        }
+
+        // 创建并下载 activityName 的文本文件
+        if (info.activityName) {
+            const activityNameFile = new Blob([info.activityName], { type: 'text/plain' });
+            const activityNameUrl = URL.createObjectURL(activityNameFile);
+            const activityNameLink = document.createElement('a');
+            activityNameLink.href = activityNameUrl;
+            activityNameLink.download = `${name}_activityName.txt`;
+            activityNameLink.click();
+        }
+
+        // 创建并下载 xml 的文本文件
+        if (info.xml) {
+            const xmlFile = new Blob([info.xml], { type: 'text/plain' });
+            const xmlUrl = URL.createObjectURL(xmlFile);
+            const xmlLink = document.createElement('a');
+            xmlLink.href = xmlUrl;
+            xmlLink.download = `${name}_xml.txt`;
+            xmlLink.click();
+        }
+
+        // 创建并下载 hierarchy 的文本文件
+        if (info.hierarchy) {
+            const hierarchyFile = new Blob([info.hierarchy], { type: 'text/plain' });
+            const hierarchyUrl = URL.createObjectURL(hierarchyFile);
+            const hierarchyLink = document.createElement('a');
+            hierarchyLink.href = hierarchyUrl;
+            hierarchyLink.download = `${name}_hierarchy.txt`;
+            hierarchyLink.click();
+        }
     }
 }
