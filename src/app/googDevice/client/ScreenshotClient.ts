@@ -21,6 +21,7 @@ type ScreenshotInfo = {
     deleteButton?: HTMLButtonElement;
     activityName?: string;
     xml?: string;
+    hierarchy?: string;
 }
 
 export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
@@ -39,6 +40,8 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
     private screenshotDiv: HTMLElement = document.createElement('div');
     private screenshotInfoMap: Map<string, ScreenshotInfo> = new Map(); // 存储当前图片名->图片的map
 
+    private hierarchyServerAbleToUse: boolean = false;
+
     constructor(params: ParamsScreenshot) {
         super(params);
         this.serial = this.params.udid;
@@ -49,7 +52,6 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             return;
         }
         this.screenshotDiv = params.screenshotDiv;
-        
     }
     
     public onError(error: string | Error): void {
@@ -75,8 +77,13 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         
     }
 
-    public ableToUse(): void {
-        console.log(TAG, "ableToUse");
+    public setHierarchyServerAbleToUse(ableToUse: boolean): void {
+        if (!this.hierarchyServerAbleToUse && ableToUse) {
+            this.createReqChannel(ScreenshotProtocol.RSER, '');
+        } else if (this.hierarchyServerAbleToUse && !ableToUse) {
+            this.createReqChannel(ScreenshotProtocol.RCSE, '');
+        }
+        this.hierarchyServerAbleToUse = ableToUse;
     }
 
     public getScreenshot(): void {
@@ -84,6 +91,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         this.createReqChannel(ScreenshotProtocol.RPIC, name);
         this.createReqChannel(ScreenshotProtocol.RACT, name);
         this.createReqChannel(ScreenshotProtocol.RXML, name);
+        this.createReqChannel(ScreenshotProtocol.RHIE, name);
     }
 
     private createReqChannel(reqType: string, name: string): void {
@@ -132,9 +140,13 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             case ScreenshotProtocol.FXML:
                 this.finishScreenshotXML(channel);
                 return;
+            case ScreenshotProtocol.FHIE:
+                this.finishScreenshotHierarchy(channel);
+                return;
             case ScreenshotProtocol.APIC:
             case ScreenshotProtocol.AACT:
             case ScreenshotProtocol.AXML:
+            case ScreenshotProtocol.AHIE:
                 const req = this.reqMap.get(channel);
                 if (!req) {
                     return;
@@ -181,7 +193,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             if (info) {
                 info.url = url;
                 info.deleteButton = deleteButton;
-                if (info.activityName && info.xml && info.url) {
+                if (info.activityName && info.xml && info.url && info.hierarchy) {
                     this.renderScreenshots();
                 }
                 this.screenshotInfoMap.set(req.name, info);
@@ -214,7 +226,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             let info = this.screenshotInfoMap.get(req.name); // 使用get方法获取Map中的值
             if (info) {
                 info.activityName = mergedString;
-                if (info.activityName && info.xml && info.url) {
+                if (info.activityName && info.xml && info.url && info.hierarchy) {
                     this.renderScreenshots();
                 }
                 this.screenshotInfoMap.set(req.name, info);
@@ -241,7 +253,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             let info = this.screenshotInfoMap.get(req.name); // 使用get方法获取Map中的值
             if (info) {
                 info.xml = mergedString;
-                if (info.activityName && info.xml && info.url) {
+                if (info.activityName && info.xml && info.url && info.hierarchy) {
                     this.renderScreenshots();
                 }
                 this.screenshotInfoMap.set(req.name, info);
@@ -249,6 +261,33 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         } else {
             this.screenshotInfoMap.set(req.name, {
                 xml: mergedString
+            });
+        }
+    }
+
+    protected finishScreenshotHierarchy(channel: Multiplexer): void {
+        const req = this.reqMap.get(channel);
+        if (!req) {
+            return;
+        }
+        const decoder = new TextDecoder('utf-8'); // 指定字符编码，这里使用 UTF-8
+        const stringArray = req.chunks.map(uint8Array => decoder.decode(uint8Array));
+        // 合并字符串数组为一个字符串
+        const mergedString = stringArray.join('');
+        console.log(TAG, 'hierarchy');
+        this.reqMap.delete(channel);
+        if (this.screenshotInfoMap.has(req.name)) {
+            let info = this.screenshotInfoMap.get(req.name); // 使用get方法获取Map中的值
+            if (info) {
+                info.hierarchy = mergedString;
+                if (info.activityName && info.xml && info.url && info.hierarchy) {
+                    this.renderScreenshots();
+                }
+                this.screenshotInfoMap.set(req.name, info);
+            }
+        } else {
+            this.screenshotInfoMap.set(req.name, {
+                hierarchy: mergedString
             });
         }
     }
@@ -358,6 +397,16 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
                     xmlLink.href = xmlUrl;
                     xmlLink.download = `${key}_xml.txt`;
                     xmlLink.click();
+                }
+
+                // 创建并下载 hierarchy 的文本文件
+                if (info.hierarchy) {
+                    const hierarchyFile = new Blob([info.hierarchy], { type: 'text/plain' });
+                    const hierarchyUrl = URL.createObjectURL(hierarchyFile);
+                    const hierarchyLink = document.createElement('a');
+                    hierarchyLink.href = hierarchyUrl;
+                    hierarchyLink.download = `${key}_hierarchy.txt`;
+                    hierarchyLink.click();
                 }
             });
         });
