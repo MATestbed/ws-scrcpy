@@ -138,63 +138,72 @@ export class AdbUtils {
         });
     }
 
-    public static async  ScreencapToStream(serial: string, stream: Multiplexer): Promise<void> {
+    public static async ScreencapToStream(serial: string, stream: Multiplexer): Promise<void> {
         const client = AdbExtended.createClient();
         const screencapStream = await client.screencap(serial);
-    
+
         screencapStream.on('data', (data) => {
             stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.APIC, 'ascii'), data]));
         });
-    
+
         return new Promise((resolve, reject) => {
             screencapStream.on('end', () => {
                 stream.send(Buffer.from(ScreenshotProtocol.FPIC, 'ascii'));
                 stream.close();
                 resolve();
             });
-    
+
             screencapStream.on('error', (error) => {
                 reject(error);
             });
         });
     }
 
-    public static async  ScreencapActivity(serial: string, stream: Multiplexer): Promise<void> {
+    public static async ScreencapActivity(serial: string, stream: Multiplexer): Promise<void> {
         const client = AdbExtended.createClient();
-        const screencapStream = await client.shell(serial, 'dumpsys window windows | grep -E \'mObscuringWindow\'');
-    
+        const screencapStream = await client.shell(serial, 'dumpsys activity activities');
+        const activityLineRe = /\*\s*Hist\s*#\d+:\s*ActivityRecord\{[^ ]+\s*[^ ]+\s*([^ ]+)\s*t(\d+)}/;
+        let hasSentActivityName = false;
+
         screencapStream.on('data', (data) => {
-            stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.AACT, 'utf-8'), data]));
+            const allmatch = data.toString().match(activityLineRe);
+            if (!hasSentActivityName) {
+                if (allmatch) {
+                    // console.log(allmatch[0])
+                    stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.AACT, 'utf-8'), Buffer.from(allmatch[1], 'utf-8')]));
+                    hasSentActivityName = true;
+                }
+            }
         });
-    
+
         return new Promise((resolve, reject) => {
             screencapStream.on('end', () => {
                 stream.send(Buffer.from(ScreenshotProtocol.FACT, 'utf-8'));
                 stream.close();
                 resolve();
             });
-    
+
             screencapStream.on('error', (error) => {
                 reject(error);
             });
         });
     }
 
-    public static async  ScreencapXML(serial: string, stream: Multiplexer): Promise<void> {
+    public static async ScreencapXML(serial: string, stream: Multiplexer): Promise<void> {
         const client = AdbExtended.createClient();
         const screencapStream = await client.shell(serial, 'uiautomator dump 1>/dev/null && cat /sdcard/window_dump.xml');
-    
+
         screencapStream.on('data', (data) => {
             stream.send(Buffer.concat([Buffer.from(ScreenshotProtocol.AXML, 'utf-8'), data]));
         });
-    
+
         return new Promise((resolve, reject) => {
             screencapStream.on('end', () => {
                 stream.send(Buffer.from(ScreenshotProtocol.FXML, 'utf-8'));
                 stream.close();
                 resolve();
             });
-    
+
             screencapStream.on('error', (error) => {
                 reject(error);
             });
