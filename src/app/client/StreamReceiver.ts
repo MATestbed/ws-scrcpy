@@ -193,7 +193,7 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     private tmpInputString: string[] = [];
     private tmpCursorPos = 0;
     private touchMoveNum = 0;
-    private lastTouchDown = new TouchControlMessage(0, 0, new Position(new Point(0, 0), new Size(0, 0)) , 0, 0);
+    private lastTouchDown = new TouchControlMessage(0, 0, new Position(new Point(0, 0), new Size(0, 0)), 0, 0);
     private appendEvent(event: ControlMessage): void {
         const [ableToShow, text] = this.getTextByEvent(event);
         if (!ableToShow) return;
@@ -203,7 +203,7 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     private appendRecordWithDelButton(text: string) {
         const deleteButton = document.createElement('button');
         deleteButton.textContent = 'Delete';
-        const struct: EventStruct = {text: text, deleteButton: deleteButton}
+        const struct: EventStruct = { text: text, deleteButton: deleteButton }
         deleteButton.addEventListener('click', () => {
             const index = this.eventStructs.indexOf(struct);
             if (index !== -1) {
@@ -216,12 +216,12 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
     }
 
     private getTextByEvent(event: ControlMessage): [boolean, string] {
-        let text = '';   
+        let text = '';
         if (event instanceof KeyCodeControlMessage) {
             text = this.getTextByKeyCodeMsg(event);
         } else if (event instanceof TouchControlMessage) {
             text = this.getTextByTouchMsg(event);
-        } 
+        }
         return [text !== '', text];
     }
 
@@ -230,10 +230,13 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
         if (event.action == 1) {
             switch (event.keycode) {
                 case KeyEvent.KEYCODE_BACK:
-                    text = '【Back键】';
+                    text = '[Back]';
                     break;
                 case KeyEvent.KEYCODE_HOME:
-                    text = '【Home键】';
+                    text = '[Home]';
+                    break;
+                case KeyEvent.KEYCODE_APP_SWITCH:
+                    text = '[App Switch]';
                     break;
                 case KeyEvent.KEYCODE_SHIFT_LEFT:
                 case KeyEvent.KEYCODE_SHIFT_RIGHT:
@@ -280,19 +283,29 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
         }
         return text;
     }
-
+    private touchStartTime: number = 0;
     private getTextByTouchMsg(event: TouchControlMessage): string {
         this.tmpCursorPos = 0;
         this.tmpInputString = [];
         let text = '';
         if (event.action == 0) {
             this.lastTouchDown = event;
+            this.touchStartTime = performance.now();
         } else if (event.action == 1) {
+            // console.log(this.touchMoveNum);
+            const touchEndTime = performance.now();
+            const touchDuration = (touchEndTime - this.touchStartTime) / 1000;
+            this.touchStartTime = 0;
             if (this.touchMoveNum < 3) {
-                text = `【点击事件】屏幕大小：（w${event.position.screenSize.width}，h${event.position.screenSize.height}），触摸位置：（x${event.position.point.x}，y${event.position.point.y}）`;
+                if (touchDuration < 0.5) {
+                    text = `[Click] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Click Position (${event.position.point.x}, ${event.position.point.y})`;
+                } else {
+                    text = `[Long Click] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Long Click Position (${event.position.point.x}, ${event.position.point.y})`;
+                }
             } else {
-                text = `【滑动事件】屏幕大小：（w${event.position.screenSize.width}，h${event.position.screenSize.height}），起始位置：（x${this.lastTouchDown.position.point.x}，y${this.lastTouchDown.position.point.y}），结束位置：（x${event.position.point.x}，y${event.position.point.y}）`;
+                text = `[Swipe] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
             }
+            // todo: add long click event and double click event
             this.touchMoveNum = 0;
         } else if (event.action == 2) {
             this.touchMoveNum++;
@@ -313,8 +326,8 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
         this.eventStructs.forEach((struct) => {
             const eventRow = document.createElement('div');
-            eventRow.style.display = 'flex'; 
-            eventRow.style.alignItems = 'center'; 
+            eventRow.style.display = 'flex';
+            eventRow.style.alignItems = 'center';
 
             const deleteButtonContainer = document.createElement('div');
             deleteButtonContainer.appendChild(struct.deleteButton);
@@ -369,17 +382,17 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
     private createDownloadButton(): HTMLButtonElement {
         const downloadButton = document.createElement('button');
-        downloadButton.innerText = '下载';
+        downloadButton.innerText = 'Download';
         downloadButton.id = 'downloadButton';
-    
+
         downloadButton.style.position = 'relative';
         downloadButton.style.display = 'block';
         downloadButton.style.margin = '0 auto';
-    
+
         downloadButton.addEventListener('click', () => {
             const content = this.eventStructs.map((struct) => struct.text).join('\n');
             const blob = new Blob([content], { type: 'text/plain' });
-    
+
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -392,15 +405,15 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
 
     private createTextButton(): HTMLButtonElement {
         const textButton = document.createElement('button');
-        textButton.innerText = '记录键盘输入';
-        textButton.id = 'textButton'; 
+        textButton.innerText = 'Record Keyboard Input';
+        textButton.id = 'textButton';
         textButton.style.position = 'relative';
         textButton.style.display = 'block';
         textButton.style.margin = '0 auto';
         textButton.addEventListener('click', () => {
-            this.appendRecordWithDelButton('【键盘输入】' + this.tmpInputString.join(''));
+            this.appendRecordWithDelButton('[INPUT]' + this.tmpInputString.join(''));
         });
-    
+
         return textButton;
     }
 }

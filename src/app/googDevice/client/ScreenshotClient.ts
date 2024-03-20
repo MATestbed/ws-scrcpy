@@ -295,8 +295,8 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
     // 函数：重新渲染 screenshotDiv 中的图片
     private renderScreenshots() {
         this.screenshotDiv.innerHTML = '';
-        const downloadButton = this.createDownloadButton();
-        this.screenshotDiv.appendChild(downloadButton);
+        // const downloadButton = this.createDownloadButton();
+        // this.screenshotDiv.appendChild(downloadButton);
         const picDiv = document.createElement('div');
         this.screenshotDiv.appendChild(picDiv);
 
@@ -306,7 +306,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         picDiv.style.justifyContent = 'flex-start';
         picDiv.style.gap = '5px'; // 设置图片之间的间隔
         picDiv.style.overflowY = 'scroll';
-        picDiv.style.maxHeight = `${this.screenshotDiv.clientHeight - downloadButton.clientHeight - 5}px`;; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
+        picDiv.style.maxHeight = `${this.screenshotDiv.clientHeight - 5}px`;; // 设置一个最大高度，以便当内容超过此高度时显示滚动条
 
         // 将每个图片 URL 渲染为缩略图，并为每张图片创建一个删除按钮
         this.screenshotInfoMap.forEach((info, name) => {
@@ -369,23 +369,23 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
         return buffer;
     }
 
-    private createDownloadButton(): HTMLButtonElement {
-        // 创建下载按钮元素
-        const downloadButton = document.createElement('button');
-        downloadButton.innerText = '下载';
-        downloadButton.id = 'downloadButton'; // 为按钮添加一个ID，方便后续引用
-        // 将按钮放置在顶部中央位置
-        downloadButton.style.position = 'relative';
-        downloadButton.style.display = 'block';
-        downloadButton.style.margin = '0 auto';
-        downloadButton.addEventListener('click', () => {
-            // 遍历 screenshotInfoMap
-            this.screenshotInfoMap.forEach((info, key) => {
-                this.download(key, info);
-            });
-        });
-        return downloadButton;
-    }
+    // private createDownloadButton(): HTMLButtonElement {
+    //     // 创建下载按钮元素
+    //     const downloadButton = document.createElement('button');
+    //     downloadButton.innerText = '下载';
+    //     downloadButton.id = 'downloadButton'; // 为按钮添加一个ID，方便后续引用
+    //     // 将按钮放置在顶部中央位置
+    //     downloadButton.style.position = 'relative';
+    //     downloadButton.style.display = 'block';
+    //     downloadButton.style.margin = '0 auto';
+    //     downloadButton.addEventListener('click', () => {
+    //         // 遍历 screenshotInfoMap
+    //         this.screenshotInfoMap.forEach((info, key) => {
+    //             this.download(key, info);
+    //         });
+    //     });
+    //     return downloadButton;
+    // }
     private download(name: string, info: ScreenshotInfo): void {
         // 创建并下载图片文件
         if (info.url) {
@@ -411,7 +411,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             const xmlUrl = URL.createObjectURL(xmlFile);
             const xmlLink = document.createElement('a');
             xmlLink.href = xmlUrl;
-            xmlLink.download = `${name}_xml.txt`;
+            xmlLink.download = `${name}.xml`;
             xmlLink.click();
         }
 
@@ -421,7 +421,7 @@ export class ScreenshotClient extends ManagerClient<ParamsScreenshot, never> {
             const hierarchyUrl = URL.createObjectURL(hierarchyFile);
             const hierarchyLink = document.createElement('a');
             hierarchyLink.href = hierarchyUrl;
-            hierarchyLink.download = `${name}_hierarchy.txt`;
+            hierarchyLink.download = `${name}_hierarchy.vh`;
             hierarchyLink.click();
         }
     }
