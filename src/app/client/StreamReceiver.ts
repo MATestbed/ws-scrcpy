@@ -411,7 +411,7 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
         textButton.style.display = 'block';
         textButton.style.margin = '0 auto';
         textButton.addEventListener('click', () => {
-            this.appendRecordWithDelButton('[INPUT]' + this.tmpInputString.join(''));
+            this.appendRecordWithDelButton('[Input]' + this.tmpInputString.join(''));
         });
 
         return textButton;
