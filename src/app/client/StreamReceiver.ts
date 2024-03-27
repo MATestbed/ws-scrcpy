@@ -303,7 +303,13 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
                     text = `[Long Click] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Long Click Position (${event.position.point.x}, ${event.position.point.y})`;
                 }
             } else {
-                text = `[Swipe] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
+                console.log(touchDuration);
+                if (touchDuration < 0.5) {
+                    text = `[Swipe] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
+                } else {
+                    text = `[Drag] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
+                }
+                // text = `[Swipe] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
             }
             // todo: add long click event and double click event
             this.touchMoveNum = 0;
