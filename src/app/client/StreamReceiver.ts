@@ -284,6 +284,8 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
         return text;
     }
     private touchStartTime: number = 0;
+    private touchDuration: number = 0;
+    private touchMoveStart:boolean = false;
     private getTextByTouchMsg(event: TouchControlMessage): string {
         this.tmpCursorPos = 0;
         this.tmpInputString = [];
@@ -293,28 +295,35 @@ export class StreamReceiver<P extends ParamsStream> extends ManagerClient<Params
             this.touchStartTime = performance.now();
         } else if (event.action == 1) {
             // console.log(this.touchMoveNum);
-            const touchEndTime = performance.now();
-            const touchDuration = (touchEndTime - this.touchStartTime) / 1000;
-            this.touchStartTime = 0;
             if (this.touchMoveNum < 3) {
-                if (touchDuration < 0.5) {
+                const touchEndTime = performance.now();
+                this.touchDuration = (touchEndTime - this.touchStartTime) / 1000;
+                this.touchStartTime = 0;
+                if (this.touchDuration < 0.5) {
                     text = `[Click] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Click Position (${event.position.point.x}, ${event.position.point.y})`;
                 } else {
                     text = `[Long Click] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Long Click Position (${event.position.point.x}, ${event.position.point.y})`;
                 }
             } else {
                 // console.log(touchDuration);
-                if (touchDuration < 0.5) {
+                if (this.touchDuration < 0.5) {
                     text = `[Swipe] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
                 } else {
                     text = `[Drag] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
                 }
+                this.touchMoveStart = false;
                 // text = `[Swipe] Screen Resolution (${event.position.screenSize.width}, ${event.position.screenSize.height}), Start Position (${this.lastTouchDown.position.point.x}, ${this.lastTouchDown.position.point.y}), End Position (${event.position.point.x}, ${event.position.point.y})`;
             }
             // todo: add long click event and double click event
             this.touchMoveNum = 0;
         } else if (event.action == 2) {
             this.touchMoveNum++;
+            if (!this.touchMoveStart) {
+                const touchEndTime = performance.now();
+                this.touchDuration = (touchEndTime - this.touchStartTime) / 1000;
+                this.touchStartTime = 0;
+                this.touchMoveStart = true;
+            }
         }
         return text;
     }
